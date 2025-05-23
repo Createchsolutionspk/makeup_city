@@ -27,7 +27,10 @@ app_license = "MIT"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+	"Material Request" : "public/js/material_request.js",
+	"Stock Entry" : "public/js/stock_entry.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -116,13 +119,17 @@ app_license = "MIT"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Sales Invoice": {
+		"validate": "makeup_city.events.sales_invoice.validate"
+	},
+	"Stock Entry": {
+		"validate": "makeup_city.events.stock_entry.validate"
+	},
+	"Material Request": {
+		"validate": "makeup_city.events.material_request.validate"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -213,3 +220,34 @@ app_license = "MIT"
 # auth_hooks = [
 # 	"makeup_city.auth.validate"
 # ]
+
+fixtures = [
+	{
+		"dt": "Custom Field",
+		"filters": [
+			["name", "in", [
+					"POS Opening Shift-custom_opening_shift_denomination",
+					"POS Closing Shift-custom_closing_shift_denomination",
+					"POS Opening Shift Detail-custom_last_day_closing",
+					"POS Opening Shift Detail-custom_difference",
+					"Shift Denomination-custom_amount",
+					"Sales Invoice-custom_bank",
+					"Sales Invoice-custom_bank_last_4_digits",
+					"POS Closing Shift-custom_section_break_nj8yw",
+					"POS Closing Shift-custom_pos_shift_closing_cash_out",
+					"POS Closing Shift Detail-custom_sales_amount",
+					"POS Closing Shift Detail-custom_cash_deposits",
+					"POS Opening Shift-custom_remarks"
+					"POS Closing Shift-custom_remarks",
+					"POS Closing Shift-custom_closing_amount",
+					"Sales Invoice Item-custom_tax_rate",
+					"Sales Invoice Item-custom_rate_with_tax",
+					"Sales Person-custom_pos_profiles_links",
+					"Sales Person-custom_pos_profiles",
+					"POS Opening Shift-Sales Person-pos_profile",
+					"Item-is_bundle"
+				]
+			]
+		]
+	}
+]

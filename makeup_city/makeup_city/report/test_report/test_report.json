@@ -1,0 +1,54 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "creation": "2025-05-07 15:19:53.773838",
+ "disable_prepared_report": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "modified": "2025-05-07 15:24:34.850833",
+ "modified_by": "Administrator",
+ "module": "Makeup City",
+ "name": "Test Report",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\n    name AS item_code,\n    item_name,\n    item_group,\n    brand\nFROM\n    `tabItem`\nWHERE\n    disabled = 0\n    AND is_sales_item = 1\n    AND (\n        item_group = 'Long Dress-Dress-BLS92487-Azure-L' OR\n        (item_group = 'C- Nail Polish- Nail Paint' AND brand = '786') \n    )\nORDER BY\n    item_name ASC",
+ "ref_doctype": "Item",
+ "report_name": "Test Report",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Maintenance User"
+  },
+  {
+   "role": "Stock Manager"
+  },
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Sales User"
+  },
+  {
+   "role": "Manufacturing User"
+  },
+  {
+   "role": "Item Manager"
+  },
+  {
+   "role": "Stock User"
+  },
+  {
+   "role": "Purchase User"
+  },
+  {
+   "role": "All"
+  },
+  {
+   "role": "branch user"
+  }
+ ]
+}
