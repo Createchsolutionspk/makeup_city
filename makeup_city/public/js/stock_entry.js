@@ -55,7 +55,7 @@ let set_source_warehouse = function(frm) {
 }
 
 let set_warehouses = function(frm) {
-	if (frm.doc.stock_entry_type == "Material Transfer" && !(frappe.session.user == "Administrator")) {
+	if (frm.doc.stock_entry_type == "Material Transfer" && !(frappe.session.user == "Administrator") && frm.doc.custom_stock_transfer_entry !== "Shop to Warehouse Transfer" && frm.doc.custom_stock_transfer_entry !== "Shop to Shop Transfer") {
 		frm.set_query('from_warehouse', ()=> {
 			return {
 				filters: {

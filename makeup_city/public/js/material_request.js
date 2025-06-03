@@ -31,7 +31,15 @@ frappe.ui.form.on('Material Request', {
 					}
 				});	
 			}
+			frm.set_query('custom_request_from', () => {
+				return {
+					filters: {
+						custom_type: 'Request'
+					}
+				};
+			});	
 		}
+		
 	},
 
 	onload: function(frm) {
