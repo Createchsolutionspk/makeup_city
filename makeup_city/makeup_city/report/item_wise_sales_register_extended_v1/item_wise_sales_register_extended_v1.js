@@ -74,6 +74,12 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			fieldtype: "Select",
 			options: ["", "Customer Group", "Customer", "Item Group", "Item", "Territory", "Invoice"],
 		},
+		{
+			fieldname: "invoice",
+			label: __("Invoice"),
+			fieldtype: "Link",
+			options: "Sales Invoice",
+		},
 	],
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);

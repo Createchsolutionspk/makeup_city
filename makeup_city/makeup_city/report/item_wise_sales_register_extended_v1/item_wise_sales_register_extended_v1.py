@@ -339,7 +339,7 @@ def get_columns(additional_table_columns, filters):
 			"width": 100,
 		},
 		{
-			"label": _("Amount"),
+			"label": _("Net Amount After Discount Exc GST"),
 			"fieldname": "amount",
 			"fieldtype": "Currency",
 			"options": "currency",
@@ -398,7 +398,7 @@ def get_columns(additional_table_columns, filters):
 			"width": 100,
 		},
 		{
-			"label": _("Net Amount Exc GST"),
+			"label": _("Net Amount Before Discount Exc GST"),
 			"fieldname": "net_amount_exc_gst",
 			"fieldtype": "Currency",
 			"options": "currency",
@@ -487,6 +487,8 @@ def apply_conditions(query, si, sii, filters, additional_conditions=None):
 	for key, value in (additional_conditions or {}).items():
 		query = query.where(si[key] == value)
 
+	if filters.get("invoice"):
+		query = query.where(si.name == filters.get("invoice"))
 	return query
 
 
@@ -763,7 +765,7 @@ def get_tax_accounts(
 
 	columns += [
 		{
-			"label": _("Total Tax"),
+			"label": _("Total GST"),
 			"fieldname": "total_tax",
 			"fieldtype": "Currency",
 			"options": "currency",
@@ -777,7 +779,7 @@ def get_tax_accounts(
 			"width": 100,
 		},
 		{
-			"label": _("Total"),
+			"label": _("Net Amount After Discount Inc GST"),
 			"fieldname": "total",
 			"fieldtype": "Currency",
 			"options": "currency",
