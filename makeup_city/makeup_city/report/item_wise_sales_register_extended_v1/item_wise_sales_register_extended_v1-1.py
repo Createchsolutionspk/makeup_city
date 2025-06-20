@@ -14,7 +14,7 @@ from erpnext.accounts.report.utils import get_query_columns, get_values_for_colu
 from erpnext.selling.report.item_wise_sales_history.item_wise_sales_history import (
 	get_customer_details,
 )
-from collections import defaultdict
+
 
 def execute(filters=None):
 	return _execute(filters)
@@ -29,7 +29,7 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 
 	item_list = get_items(filters, additional_table_columns, additional_conditions)
 	if item_list:
-		itemised_tax, tax_columns = get_tax_accounts(item_list, columns, company_currency, filters)
+		itemised_tax, tax_columns = get_tax_accounts(item_list, columns, company_currency)
 
 		scrubbed_tax_fields = {}
 
@@ -54,192 +54,111 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 
 	customer_details = get_customer_details()
 
-	if filters.get("group_by") == "Group by Invoice":
-		grouped_by_invoice = defaultdict(list)
-		for p in item_list:
-			grouped_by_invoice[p.get("parent")].append(p)
-		
-		for key, items in grouped_by_invoice.items():
-			item1 = items[0]
-			customer_record = customer_details.get(item1.customer)
-			row = {
-				"invoice": item1.parent,
-				"posting_date": item1.posting_date,
-				"customer": item1.customer,
-				"customer_name": customer_record.customer_name,
-				"customer_group": customer_record.customer_group,
-				**get_values_for_columns(additional_table_columns, item1),
-				"mode_of_payment": ", ".join(mode_of_payments.get(item1.parent, [])),
-				"territory": item1.territory,
-				"project": item1.project,
-				"company": item1.company,
-				"gross_sales": 0.0,
-				"discount_amount": 0.0,
-				"net_amount_exc_gst": 0.0,
-				"amount": 0.0,
-				"remarks": item1.get("remarks"),
-				"net_total": item1.get("base_net_total", 0),
-				"tax_total": item1.get("total_taxes_and_charges"),
-				"grand_total": item1.get("base_grand_total"),
-				"rounded_total": item1.get("base_rounded_total"),
-				"outstanding_amount": item1.get("outstanding_amount")
-			}
+	for d in item_list:
+		customer_record = customer_details.get(d.customer)
 
-			for d in items:
-				tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
-				row["gross_sales"] += (d.get("price_list_rate", 0) + tax_rate) * d.get("qty", 0)
-				row["discount_amount"] += d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-				row["net_amount_exc_gst"] += d.get("base_net_amount", 0) + d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-				row["amount"] += d.get("base_net_amount")
+		delivery_note = None
+		if d.delivery_note:
+			delivery_note = d.delivery_note
+		elif d.so_detail:
+			delivery_note = ", ".join(so_dn_map.get(d.so_detail, []))
 
-			total_tax = 0
-			total_other_charges = 0
-			for tax in tax_columns:
-				item_tax = itemised_tax.get(d.name, {}).get(tax, {})
-				row.update(
-					{
-						scrubbed_tax_fields[tax + " Rate"]: item_tax.get("tax_rate", 0),
-						scrubbed_tax_fields[tax + " Amount"]: item_tax.get("tax_amount", 0),
-					}
-				)
-				if item_tax.get("is_other_charges"):
-					total_other_charges += flt(item_tax.get("tax_amount"))
-				else:
-					total_tax += flt(item_tax.get("tax_amount"))
+		if not delivery_note and d.update_stock:
+			delivery_note = d.parent
 
+		row = {
+			"item_code": d.item_code,
+			"item_name": d.si_item_name if d.si_item_name else d.i_item_name,
+			"item_group": d.si_item_group if d.si_item_group else d.i_item_group,
+			"description": d.description,
+			"invoice": d.parent,
+			"posting_date": d.posting_date,
+			"customer": d.customer,
+			"customer_name": customer_record.customer_name,
+			"customer_group": customer_record.customer_group,
+			**get_values_for_columns(additional_table_columns, d),
+			"debit_to": d.debit_to,
+			"mode_of_payment": ", ".join(mode_of_payments.get(d.parent, [])),
+			"territory": d.territory,
+			"project": d.project,
+			"company": d.company,
+			"sales_order": d.sales_order,
+			"delivery_note": d.delivery_note,
+			"income_account": get_income_account(d),
+			"cost_center": d.cost_center,
+			"stock_qty": d.stock_qty,
+			"stock_uom": d.stock_uom,
+		}
+
+		if d.stock_uom != d.uom and d.stock_qty:
+			row.update({"rate": (d.base_net_rate * d.qty) / d.stock_qty, "amount": d.base_net_amount})
+		else:
+			row.update({"rate": d.base_net_rate, "amount": d.base_net_amount})
+
+		total_tax = 0
+		total_other_charges = 0
+		for tax in tax_columns:
+			item_tax = itemised_tax.get(d.name, {}).get(tax, {})
 			row.update(
 				{
-					"total_tax": total_tax,
-					"total_other_charges": total_other_charges,
-					"total": d.base_net_amount + total_tax,
-					"currency": company_currency,
+					scrubbed_tax_fields[tax + " Rate"]: item_tax.get("tax_rate", 0),
+					scrubbed_tax_fields[tax + " Amount"]: item_tax.get("tax_amount", 0),
 				}
 			)
-
-			if filters.get("group_by"):
-				row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
-				group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
-				data, prev_group_by_value = add_total_row(
-					data,
-					filters,
-					prev_group_by_value,
-					d,
-					total_row_map,
-					group_by_field,
-					subtotal_display_field,
-					grand_total,
-					tax_columns,
-				)
-				# add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
-			data.append(row)
-	else:
-		for d in item_list:
-			customer_record = customer_details.get(d.customer)
-
-			delivery_note = None
-			if d.delivery_note:
-				delivery_note = d.delivery_note
-			elif d.so_detail:
-				delivery_note = ", ".join(so_dn_map.get(d.so_detail, []))
-
-			if not delivery_note and d.update_stock:
-				delivery_note = d.parent
-
-			row = {
-				"item_code": d.item_code,
-				"item_name": d.si_item_name if d.si_item_name else d.i_item_name,
-				"brand": d.brand,
-				"brand_type": d.brand_type,
-				"item_group": d.si_item_group if d.si_item_group else d.i_item_group,
-				"description": d.description,
-				"invoice": d.parent,
-				"posting_date": d.posting_date,
-				"customer": d.customer,
-				"customer_name": customer_record.customer_name,
-				"customer_group": customer_record.customer_group,
-				**get_values_for_columns(additional_table_columns, d),
-				"debit_to": d.debit_to,
-				"mode_of_payment": ", ".join(mode_of_payments.get(d.parent, [])),
-				"territory": d.territory,
-				"project": d.project,
-				"company": d.company,
-				"sales_order": d.sales_order,
-				"delivery_note": d.delivery_note,
-				"income_account": get_income_account(d),
-				"cost_center": d.cost_center,
-				"stock_qty": d.stock_qty,
-				"stock_uom": d.stock_uom,
-			}
-
-			if d.stock_uom != d.uom and d.stock_qty:
-				row.update({"rate": (d.base_net_rate * d.qty) / d.stock_qty, "amount": d.base_net_amount})
+			if item_tax.get("is_other_charges"):
+				total_other_charges += flt(item_tax.get("tax_amount"))
 			else:
-				row.update({"rate": d.base_net_rate, "amount": d.base_net_amount})
+				total_tax += flt(item_tax.get("tax_amount"))
 
-			total_tax = 0
-			total_other_charges = 0
-			for tax in tax_columns:
-				item_tax = itemised_tax.get(d.name, {}).get(tax, {})
-				row.update(
-					{
-						scrubbed_tax_fields[tax + " Rate"]: item_tax.get("tax_rate", 0),
-						scrubbed_tax_fields[tax + " Amount"]: item_tax.get("tax_amount", 0),
-					}
-				)
-				if item_tax.get("is_other_charges"):
-					total_other_charges += flt(item_tax.get("tax_amount"))
-				else:
-					total_tax += flt(item_tax.get("tax_amount"))
+		row.update(
+			{
+				"total_tax": total_tax,
+				"total_other_charges": total_other_charges,
+				"total": d.base_net_amount + total_tax,
+				"currency": company_currency,
+			}
+		)
 
-			row.update(
-				{
-					"total_tax": total_tax,
-					"total_other_charges": total_other_charges,
-					"total": d.base_net_amount + total_tax,
-					"currency": company_currency,
-				}
+		if filters.get("group_by"):
+			row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
+			group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
+			data, prev_group_by_value = add_total_row(
+				data,
+				filters,
+				prev_group_by_value,
+				d,
+				total_row_map,
+				group_by_field,
+				subtotal_display_field,
+				grand_total,
+				tax_columns,
 			)
+			add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
 
-			if filters.get("group_by"):
-				row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
-				group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
-				data, prev_group_by_value = add_total_row(
-					data,
-					filters,
-					prev_group_by_value,
-					d,
-					total_row_map,
-					group_by_field,
-					subtotal_display_field,
-					grand_total,
-					tax_columns,
-				)
-				add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
+		# set new columns values
+		row["quantity"] = d.get("qty", 0)
+		row["price_list_rate"] = d.get("price_list_rate", 0)
+		tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
+		row["tax_rate"] = tax_rate
+		row["mrp_rate"] = d.get("price_list_rate", 0) + tax_rate
+		row["gross_sales"] = row["mrp_rate"] * row["quantity"]
+		row["item_discounted_amount"] = d.get("base_rate", 0)
+		row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
+		row["net_amount_exc_gst"] = row["amount"] + row["discount_amount"]
+		row["gst"] = row["net_amount_exc_gst"] * d.get("tax_rate", 0)/100
+		row["net_sales_disc_gst"] = row["net_amount_exc_gst"] + row["gst"]
+		row["remarks"] = d.get("remarks")
 
-			# set new columns values
-			row["quantity"] = d.get("qty", 0)
-			row["price_list_rate"] = d.get("price_list_rate", 0)
-			tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
-			row["tax_rate"] = tax_rate
-			row["mrp_rate"] = d.get("price_list_rate", 0) + tax_rate
-			row["gross_sales"] = row["mrp_rate"] * row["quantity"]
-			row["item_discounted_amount"] = d.get("base_rate", 0)
-			row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-			row["net_amount_exc_gst"] = row["amount"] + row["discount_amount"]
-			row["gst"] = row["net_amount_exc_gst"] * d.get("tax_rate", 0)/100
-			row["net_sales_disc_gst"] = row["net_amount_exc_gst"] + row["gst"]
-			row["remarks"] = d.get("remarks")
+		data.append(row)
 
-			data.append(row)
-
-		if filters.get("group_by") and item_list:
-			total_row = total_row_map.get(prev_group_by_value or d.get("item_name"))
-			total_row["percent_gt"] = flt(total_row["total"] / grand_total * 100)
-			data.append(total_row)
-			data.append({})
-			add_sub_total_row(total_row, total_row_map, "total_row", tax_columns)
-			data.append(total_row_map.get("total_row"))
-			skip_total_row = 1
+	if filters.get("group_by") and item_list:
+		total_row = total_row_map.get(prev_group_by_value or d.get("item_name"))
+		total_row["percent_gt"] = flt(total_row["total"] / grand_total * 100)
+		data.append(total_row)
+		data.append({})
+		add_sub_total_row(total_row, total_row_map, "total_row", tax_columns)
+		data.append(total_row_map.get("total_row"))
+		skip_total_row = 1
 
 	return columns, data, None, None, None, skip_total_row
 
@@ -256,7 +175,7 @@ def get_income_account(row):
 def get_columns(additional_table_columns, filters):
 	columns = []
 
-	if filters.get("group_by") not in ("Item", "Group by Invoice"):
+	if filters.get("group_by") != ("Item"):
 		columns.extend(
 			[
 				{
@@ -267,12 +186,10 @@ def get_columns(additional_table_columns, filters):
 					"width": 120,
 				},
 				{"label": _("Item Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 120},
-				{"label": _("Brand"), "fieldname": "brand", "fieldtype": "Link", "options": "Brand", "width": 120},
-				{"label": _("Brand Type"), "fieldname": "brand_type", "fieldtype": "Data", "width": 120},
 			]
 		)
 
-	if filters.get("group_by") not in ("Item", "Item Group", "Group by Invoice"):
+	if filters.get("group_by") not in ("Item", "Item Group"):
 		columns.extend(
 			[
 				{
@@ -284,12 +201,10 @@ def get_columns(additional_table_columns, filters):
 				}
 			]
 		)
-	if filters.get("group_by") != "Group by Invoice":
-		columns.append(
-			{"label": _("Description"), "fieldname": "description", "fieldtype": "Data", "width": 150}
-		)
+
 	columns.extend(
 		[
+			{"label": _("Description"), "fieldname": "description", "fieldtype": "Data", "width": 150},
 			{
 				"label": _("Invoice"),
 				"fieldname": "invoice",
@@ -426,37 +341,34 @@ def get_columns(additional_table_columns, filters):
 	]
 
 	# extend new columns as per excel sheet
-	if filters.get("group_by") != "Group by Invoice":
-		columns += [
-			{
-				"label": _("Price List"),
-				"fieldname": "price_list_rate",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Tax Rate"),
-				"fieldname": "tax_rate",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("MRP"),
-				"fieldname": "mrp_rate",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Qty"),
-				"fieldname": "quantity",
-				"fieldtype": "Float",
-				"width": 100,
-			},
-		]
 	columns += [
+		{
+			"label": _("Price List"),
+			"fieldname": "price_list_rate",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Tax Rate"),
+			"fieldname": "tax_rate",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("MRP"),
+			"fieldname": "mrp_rate",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Qty"),
+			"fieldname": "quantity",
+			"fieldtype": "Float",
+			"width": 100,
+		},
 		{
 			"label": _("Gross Sales"),
 			"fieldname": "gross_sales",
@@ -464,6 +376,13 @@ def get_columns(additional_table_columns, filters):
 			"options": "currency",
 			"width": 100,
 		},
+		# {
+		# 	"label": _("Item Discounted Amount"),
+		# 	"fieldname": "item_discounted_amount",
+		# 	"fieldtype": "Currency",
+		# 	"options": "currency",
+		# 	"width": 100,
+		# },
 		{
 			"label": _("Discount Amount"),
 			"fieldname": "discount_amount",
@@ -477,81 +396,38 @@ def get_columns(additional_table_columns, filters):
 			"fieldtype": "Currency",
 			"options": "currency",
 			"width": 100,
-		}		
+		},
+		{
+			"label": _("GST"),
+			"fieldname": "gst",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Net Sales After Discount with GST"),
+			"fieldname": "net_sales_disc_gst",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Net Amount After Discount Exc GST"),
+			"fieldname": "amount",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Remarks"),
+			"fieldname": "remarks",
+			"fieldtype": "Data",
+			"width": 200,
+		},
+		
 	]
 
-	if filters.get("group_by") == "Group by Invoice":
-		columns += [
-			{
-				"label": _("Net Total"),
-				"fieldname": "net_total",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Tax Total"),
-				"fieldname": "tax_total",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Grand Total"),
-				"fieldname": "grand_total",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Rounded Total"),
-				"fieldname": "rounded_total",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Outstanding Amount"),
-				"fieldname": "outstanding_amount",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-
-		]
-
-	if filters.get("group_by") != "Group by Invoice":
-		columns.extend([
-			{
-				"label": _("GST"),
-				"fieldname": "gst",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Net Sales After Discount with GST"),
-				"fieldname": "net_sales_disc_gst",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Net Amount After Discount Exc GST"),
-				"fieldname": "amount",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-		])
-	columns.append({
-		"label": _("Remarks"),
-		"fieldname": "remarks",
-		"fieldtype": "Data",
-		"width": 200,
-	})
-
-	if filters.get("group_by") != "Group by Invoice":
+	if filters.get("group_by"):
 		columns.append(
 			{"label": _("% Of Grand Total"), "fieldname": "percent_gt", "fieldtype": "Float", "width": 80}
 		)
@@ -559,7 +435,7 @@ def get_columns(additional_table_columns, filters):
 	return columns
 
 
-def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
+def apply_conditions(query, si, sii, filters, additional_conditions=None):
 	for opts in ("company", "customer"):
 		if filters.get(opts):
 			query = query.where(si[opts] == filters[opts])
@@ -574,7 +450,7 @@ def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
 		sales_invoice = frappe.db.get_all(
 			"Sales Invoice Payment", {"mode_of_payment": filters.get("mode_of_payment")}, pluck="parent"
 		)
-		query = query.where(sii.parent.isin(sales_invoice))
+		query = query.where(si.name.isin(sales_invoice))
 
 	if filters.get("warehouse"):
 		if frappe.db.get_value("Warehouse", filters.get("warehouse"), "is_group"):
@@ -588,9 +464,6 @@ def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
 
 	if filters.get("brand"):
 		query = query.where(sii.brand == filters.get("brand"))
-	
-	if filters.get("brand_type"):
-		query = query.where(item.custom_brand_type == filters.get("brand_type"))
 
 	if filters.get("item_code"):
 		query = query.where(sii.item_code == filters.get("item_code"))
@@ -665,8 +538,6 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 			sii.item_group.as_("si_item_group"),
 			item.item_name.as_("i_item_name"),
 			item.item_group.as_("i_item_group"),
-			item.brand,
-			item.custom_brand_type.as_("brand_type"),
 			sii.sales_order,
 			sii.delivery_note,
 			sii.income_account,
@@ -686,12 +557,7 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 			sii.price_list_rate,
 			sii.base_rate,
 			sii.base_amount,
-			sii.tax_rate,
-			si.base_net_total,
-			si.total_taxes_and_charges,
-			si.base_grand_total,
-			si.base_rounded_total,
-			si.outstanding_amount
+			sii.tax_rate
 		)
 		.where(si.docstatus == 1)
 		.where(sii.parenttype == doctype)
@@ -711,9 +577,9 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 	if filters.get("customer_group"):
 		query = query.where(si.customer_group == filters["customer_group"])
 
-	query = apply_conditions(query, si, sii, item, filters, additional_conditions)
+	query = apply_conditions(query, si, sii, filters, additional_conditions)
 
-	return query.run(as_dict=True, debug=True)
+	return query.run(as_dict=True)
 
 
 def get_delivery_notes_against_sales_order(item_list):
@@ -754,7 +620,6 @@ def get_tax_accounts(
 	item_list,
 	columns,
 	company_currency,
-	filters,
 	doctype="Sales Invoice",
 	tax_doctype="Sales Taxes and Charges",
 ):
@@ -898,37 +763,36 @@ def get_tax_accounts(
 			}
 		)
 
-	if filters.get("group_by") != "Group by Invoice":
-		columns += [
-			{
-				"label": _("Total GST"),
-				"fieldname": "total_tax",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Total Other Charges"),
-				"fieldname": "total_other_charges",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Net Amount After Discount Inc GST"),
-				"fieldname": "total",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"fieldname": "currency",
-				"label": _("Currency"),
-				"fieldtype": "Currency",
-				"width": 80,
-				"hidden": 1,
-			},
-		]
+	columns += [
+		{
+			"label": _("Total GST"),
+			"fieldname": "total_tax",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Total Other Charges"),
+			"fieldname": "total_other_charges",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"label": _("Net Amount After Discount Inc GST"),
+			"fieldname": "total",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		},
+		{
+			"fieldname": "currency",
+			"label": _("Currency"),
+			"fieldtype": "Currency",
+			"width": 80,
+			"hidden": 1,
+		},
+	]
 
 	return itemised_tax, tax_columns
 
