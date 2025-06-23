@@ -41,7 +41,7 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			fieldname: "warehouse",
 			label: __("Warehouse"),
 			fieldtype: "Link",
-			"reqd": 1,
+			"reqd": 0,
 			options: "Warehouse",
 			get_query: function () {
 				const company = frappe.query_report.get_filter_value("company");
