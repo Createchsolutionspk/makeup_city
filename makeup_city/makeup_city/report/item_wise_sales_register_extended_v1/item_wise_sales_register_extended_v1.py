@@ -78,6 +78,7 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				"net_amount_exc_gst": 0.0,
 				"amount": 0.0,
 				"remarks": item1.get("remarks"),
+				"cost_center": item1.si_cost_center,
 				"net_total": item1.get("base_net_total", 0),
 				"tax_total": item1.get("total_taxes_and_charges"),
 				"grand_total": item1.get("base_grand_total"),
@@ -465,19 +466,19 @@ def get_columns(additional_table_columns, filters):
 			"width": 100,
 		},
 		{
-			"label": _("Discount Amount"),
-			"fieldname": "discount_amount",
-			"fieldtype": "Currency",
-			"options": "currency",
-			"width": 100,
-		},
-		{
 			"label": _("Net Amount Before Discount Exc GST"),
 			"fieldname": "net_amount_exc_gst",
 			"fieldtype": "Currency",
 			"options": "currency",
 			"width": 100,
-		}		
+		},		
+		{
+			"label": _("Discount Amount"),
+			"fieldname": "discount_amount",
+			"fieldtype": "Currency",
+			"options": "currency",
+			"width": 100,
+		}
 	]
 
 	if filters.get("group_by") == "Group by Invoice":
@@ -691,7 +692,8 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 			si.total_taxes_and_charges,
 			si.base_grand_total,
 			si.base_rounded_total,
-			si.outstanding_amount
+			si.outstanding_amount,
+			si.cost_center.as_("si_cost_center")
 		)
 		.where(si.docstatus == 1)
 		.where(sii.parenttype == doctype)
@@ -713,7 +715,7 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 
 	query = apply_conditions(query, si, sii, item, filters, additional_conditions)
 
-	return query.run(as_dict=True, debug=True)
+	return query.run(as_dict=True, debug=False)
 
 
 def get_delivery_notes_against_sales_order(item_list):
@@ -877,28 +879,28 @@ def get_tax_accounts(
 					}
 				)
 
-	tax_columns.sort()
-	for desc in tax_columns:
-		columns.append(
-			{
-				"label": _(desc + " Rate"),
-				"fieldname": frappe.scrub(desc + " Rate"),
-				"fieldtype": "Float",
-				"width": 100,
-			}
-		)
-
-		columns.append(
-			{
-				"label": _(desc + " Amount"),
-				"fieldname": frappe.scrub(desc + " Amount"),
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			}
-		)
-
 	if filters.get("group_by") != "Group by Invoice":
+		tax_columns.sort()
+		for desc in tax_columns:
+			columns.append(
+				{
+					"label": _(desc + " Rate"),
+					"fieldname": frappe.scrub(desc + " Rate"),
+					"fieldtype": "Float",
+					"width": 100,
+				}
+			)
+
+			columns.append(
+				{
+					"label": _(desc + " Amount"),
+					"fieldname": frappe.scrub(desc + " Amount"),
+					"fieldtype": "Currency",
+					"options": "currency",
+					"width": 100,
+				}
+			)
+
 		columns += [
 			{
 				"label": _("Total GST"),
