@@ -125,20 +125,20 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				}
 			)
 
-			if filters.get("group_by"):
-				row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
-				group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
-				data, prev_group_by_value = add_total_row(
-					data,
-					filters,
-					prev_group_by_value,
-					d,
-					total_row_map,
-					group_by_field,
-					subtotal_display_field,
-					grand_total,
-					tax_columns,
-				)
+			# if filters.get("group_by"):
+			# 	row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
+			# 	group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
+			# 	data, prev_group_by_value = add_total_row(
+			# 		data,
+			# 		filters,
+			# 		prev_group_by_value,
+			# 		d,
+			# 		total_row_map,
+			# 		group_by_field,
+			# 		subtotal_display_field,
+			# 		grand_total,
+			# 		tax_columns,
+			# 	)
 				# add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
 			data.append(row)
 	else:
