@@ -82,9 +82,9 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				"gst": 0.0,
 				"remarks": item1.get("remarks"),
 				"cost_center": item1.si_cost_center,
-				"net_total": item1.get("base_net_total", 0),
-				"tax_total": item1.get("total_taxes_and_charges"),
-				"grand_total": item1.get("base_grand_total"),
+				"net_total": 0,
+				"tax_total": 0.0,
+				"grand_total": 0.0,
 				"rounded_total": item1.get("base_rounded_total"),
 				"outstanding_amount": item1.get("outstanding_amount"),
 				"warehouse": item1.get("warehouse")
@@ -95,10 +95,13 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				row["quantity"] += d.get("qty", 0)
 				row["gross_sales"] += (d.get("price_list_rate", 0) + tax_rate) * d.get("qty", 0)
 				row["discount_amount"] += d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-				net_amount_exc_gst = d.get("base_net_amount", 0) + d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
+				net_amount_exc_gst = d.get("price_list_rate", 0)*d.get("qty", 0)
 				row["net_amount_exc_gst"] += net_amount_exc_gst
-				row["gst"] += net_amount_exc_gst * d.get("tax_rate", 0)/100
+				row["gst"] += d.get("base_net_amount") * d.get("tax_rate", 0)/100
+				row["tax_total"] += d.get("base_net_amount") * d.get("tax_rate", 0)/100
 				row["net_sales_disc_gst"] = net_amount_exc_gst + net_amount_exc_gst * d.get("tax_rate", 0)/100
+				row["net_total"] += d.get("base_net_amount")
+				row["grand_total"] += d.get("base_net_amount") + d.get("base_net_amount") * d.get("tax_rate", 0)/100
 				row["amount"] += d.get("base_net_amount")
 
 			total_tax = 0
@@ -124,22 +127,6 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 					"currency": company_currency,
 				}
 			)
-
-			# if filters.get("group_by"):
-			# 	row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
-			# 	group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
-			# 	data, prev_group_by_value = add_total_row(
-			# 		data,
-			# 		filters,
-			# 		prev_group_by_value,
-			# 		d,
-			# 		total_row_map,
-			# 		group_by_field,
-			# 		subtotal_display_field,
-			# 		grand_total,
-			# 		tax_columns,
-			# 	)
-				# add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
 			data.append(row)
 	else:
 		for d in item_list:
@@ -235,8 +222,8 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 			row["gross_sales"] = row["mrp_rate"] * row["quantity"]
 			row["item_discounted_amount"] = d.get("base_rate", 0)
 			row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-			row["net_amount_exc_gst"] = row["amount"] + row["discount_amount"]
-			row["gst"] = row["net_amount_exc_gst"] * d.get("tax_rate", 0)/100
+			row["net_amount_exc_gst"] = d.get("price_list_rate", 0)*d.get("qty", 0)
+			row["gst"] = d.get("base_net_amount") * d.get("tax_rate", 0)/100
 			row["net_sales_disc_gst"] = row["net_amount_exc_gst"] + row["gst"]
 			row["remarks"] = d.get("remarks")
 
@@ -312,7 +299,7 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Link",
 				"options": "Sales Invoice",
 				"width": 120,
-				"hidden": 0 if filters.get("group_by") == "Group by Invoice" else 1
+				"hidden": 1 if filters.get("group_by") == "Group by Invoice" else 0
 			},
 			{"label": _("Posting Date"), "fieldname": "posting_date", "fieldtype": "Date", "width": 120, "hidden": hide_column},
 		]
@@ -416,7 +403,7 @@ def get_columns(additional_table_columns, filters):
 		}
 	]
 	
-	if filters.get("group_by") == "Group by Invoice":
+	if filters.get("group_by") in ("Group by Invoice", "Warehouse"):
 		columns += [
 			{
 				"label": _("Net Total"),
@@ -445,7 +432,7 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": 0
+				"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
 			},
 			{
 				"label": _("Outstanding Amount"),
@@ -453,11 +440,11 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": 0
+				"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
 			},
 		]
 
-	if filters.get("group_by") != "Group by Invoice":
+	if filters.get("group_by") not in ("Group by Invoice", "Warehouse"):
 		columns.extend([
 			{
 				"label": _("GST"),
