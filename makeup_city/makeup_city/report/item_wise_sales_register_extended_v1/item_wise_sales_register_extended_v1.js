@@ -41,7 +41,7 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			fieldname: "warehouse",
 			label: __("Warehouse"),
 			fieldtype: "Link",
-			"reqd": 1,
+			"reqd": 0,
 			options: "Warehouse",
 			get_query: function () {
 				const company = frappe.query_report.get_filter_value("company");
@@ -55,6 +55,12 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			label: __("Brand"),
 			fieldtype: "Link",
 			options: "Brand",
+		},
+		{
+			fieldname: "brand_type",
+			label: __("Brand Type"),
+			fieldtype: "Select",
+			options: ["", "Purchased", "Internal", "Consignment", "External"],
 		},
 		{
 			fieldname: "item_code",
@@ -72,7 +78,7 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			label: __("Group By"),
 			fieldname: "group_by",
 			fieldtype: "Select",
-			options: ["", "Customer Group", "Customer", "Item Group", "Item", "Territory", "Invoice"],
+			options: ["", "Customer Group", "Customer", "Item Group", "Item", "Territory", "Invoice", "Group by Invoice", "Warehouse"],
 		},
 		{
 			fieldname: "invoice",
