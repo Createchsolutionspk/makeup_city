@@ -92,14 +92,15 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 
 			for d in items:
 				tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
+				gst = d.get("base_net_amount") * d.get("tax_rate", 0)/100
 				row["quantity"] += d.get("qty", 0)
 				row["gross_sales"] += (d.get("price_list_rate", 0) + tax_rate) * d.get("qty", 0)
 				row["discount_amount"] += d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
 				net_amount_exc_gst = d.get("price_list_rate", 0)*d.get("qty", 0)
 				row["net_amount_exc_gst"] += net_amount_exc_gst
-				row["gst"] += d.get("base_net_amount") * d.get("tax_rate", 0)/100
+				row["gst"] += gst
 				row["tax_total"] += d.get("base_net_amount") * d.get("tax_rate", 0)/100
-				row["net_sales_disc_gst"] = net_amount_exc_gst + net_amount_exc_gst * d.get("tax_rate", 0)/100
+				row["net_sales_disc_gst"] = d.get("base_net_amount") + gst
 				row["net_total"] += d.get("base_net_amount")
 				row["grand_total"] += d.get("base_net_amount") + d.get("base_net_amount") * d.get("tax_rate", 0)/100
 				row["amount"] += d.get("base_net_amount")
@@ -224,7 +225,7 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 			row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
 			row["net_amount_exc_gst"] = d.get("price_list_rate", 0)*d.get("qty", 0)
 			row["gst"] = d.get("base_net_amount") * d.get("tax_rate", 0)/100
-			row["net_sales_disc_gst"] = row["net_amount_exc_gst"] + row["gst"]
+			row["net_sales_disc_gst"] = d.get("base_net_amount") + row["gst"]
 			row["remarks"] = d.get("remarks")
 
 			data.append(row)
@@ -299,7 +300,7 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Link",
 				"options": "Sales Invoice",
 				"width": 120,
-				"hidden": 1 if filters.get("group_by") == "Group by Invoice" else 0
+				"hidden": 0 if filters.get("group_by") == "Group by Invoice" else 1
 			},
 			{"label": _("Posting Date"), "fieldname": "posting_date", "fieldtype": "Date", "width": 120, "hidden": hide_column},
 		]
@@ -447,6 +448,13 @@ def get_columns(additional_table_columns, filters):
 	if filters.get("group_by") not in ("Group by Invoice", "Warehouse"):
 		columns.extend([
 			{
+				"label": _("Net Amount After Discount Exc GST"),
+				"fieldname": "amount",
+				"fieldtype": "Currency",
+				"options": "currency",
+				"width": 100,
+			},
+			{
 				"label": _("GST"),
 				"fieldname": "gst",
 				"fieldtype": "Currency",
@@ -456,13 +464,6 @@ def get_columns(additional_table_columns, filters):
 			{
 				"label": _("Net Sales After Discount with GST"),
 				"fieldname": "net_sales_disc_gst",
-				"fieldtype": "Currency",
-				"options": "currency",
-				"width": 100,
-			},
-			{
-				"label": _("Net Amount After Discount Exc GST"),
-				"fieldname": "amount",
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
@@ -834,7 +835,7 @@ def get_tax_accounts(
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": hide_column,
+				"hidden": 1,
 			},
 			{
 				"label": _("Total Other Charges"),
@@ -842,7 +843,7 @@ def get_tax_accounts(
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": hide_column
+				"hidden": 1
 			},
 			{
 				"label": _("Net Amount After Discount Inc GST"),
@@ -850,14 +851,14 @@ def get_tax_accounts(
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": hide_column
+				"hidden": 1
 			},
 			{
 				"fieldname": "currency",
 				"label": _("Currency"),
 				"fieldtype": "Currency",
 				"width": 80,
-				"hidden": hide_column
+				"hidden": 1
 			},
 		]
 
