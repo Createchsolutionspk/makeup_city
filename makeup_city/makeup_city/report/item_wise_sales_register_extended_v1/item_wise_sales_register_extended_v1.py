@@ -78,7 +78,7 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				"discount_amount": 0.0,
 				"net_amount_exc_gst": 0.0,
 				"amount": 0.0,
-				"quantity": 0.0,
+				"qty": 0.0,
 				"gst": 0.0,
 				"remarks": item1.get("remarks"),
 				"cost_center": item1.si_cost_center,
@@ -93,7 +93,7 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 			for d in items:
 				tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
 				gst = d.get("base_net_amount") * d.get("tax_rate", 0)/100
-				row["quantity"] += d.get("qty", 0)
+				row["qty"] += d.get("qty", 0)
 				row["gross_sales"] += (d.get("price_list_rate", 0) + tax_rate) * d.get("qty", 0)
 				row["discount_amount"] += d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
 				net_amount_exc_gst = d.get("price_list_rate", 0)*d.get("qty", 0)
@@ -128,6 +128,22 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 					"currency": company_currency,
 				}
 			)
+
+			# if filters.get("group_by"):
+			# 	row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
+			# 	group_by_field, subtotal_display_field = get_group_by_and_display_fields(filters)
+			# 	data, prev_group_by_value = add_total_row(
+			# 		data,
+			# 		filters,
+			# 		prev_group_by_value,
+			# 		d,
+			# 		total_row_map,
+			# 		group_by_field,
+			# 		subtotal_display_field,
+			# 		grand_total,
+			# 		tax_columns,
+			# 	)
+			# 	add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
 			data.append(row)
 	else:
 		for d in item_list:
@@ -197,6 +213,19 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 					"currency": company_currency,
 				}
 			)
+			# set new columns values
+			row["qty"] = d.get("qty", 0)
+			row["price_list_rate"] = d.get("price_list_rate", 0)
+			tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
+			row["tax_rate"] = tax_rate
+			row["mrp_rate"] = d.get("price_list_rate", 0) + tax_rate
+			row["gross_sales"] = row["mrp_rate"] * row["qty"]
+			row["item_discounted_amount"] = d.get("base_rate", 0)
+			row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
+			row["net_amount_exc_gst"] = d.get("price_list_rate", 0)*d.get("qty", 0)
+			row["gst"] = d.get("base_net_amount") * d.get("tax_rate", 0)/100
+			row["net_sales_disc_gst"] = d.get("base_net_amount") + row["gst"]
+			row["remarks"] = d.get("remarks")
 
 			if filters.get("group_by"):
 				row.update({"percent_gt": flt(row["total"] / grand_total) * 100})
@@ -214,19 +243,6 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				)
 				add_sub_total_row(row, total_row_map, d.get(group_by_field, ""), tax_columns)
 
-			# set new columns values
-			row["quantity"] = d.get("qty", 0)
-			row["price_list_rate"] = d.get("price_list_rate", 0)
-			tax_rate = d.get("price_list_rate", 0) * d.get("tax_rate", 0)/100
-			row["tax_rate"] = tax_rate
-			row["mrp_rate"] = d.get("price_list_rate", 0) + tax_rate
-			row["gross_sales"] = row["mrp_rate"] * row["quantity"]
-			row["item_discounted_amount"] = d.get("base_rate", 0)
-			row["discount_amount"] = d.get("price_list_rate", 0)*d.get("qty", 0) - d.get("base_net_amount", 0)
-			row["net_amount_exc_gst"] = d.get("price_list_rate", 0)*d.get("qty", 0)
-			row["gst"] = d.get("base_net_amount") * d.get("tax_rate", 0)/100
-			row["net_sales_disc_gst"] = d.get("base_net_amount") + row["gst"]
-			row["remarks"] = d.get("remarks")
 
 			data.append(row)
 
@@ -373,7 +389,7 @@ def get_columns(additional_table_columns, filters):
 		},
 		{
 			"label": _("Qty"),
-			"fieldname": "quantity",
+			"fieldname": "qty",
 			"fieldtype": "Float",
 			"width": 100,
 			"hidden": 1 if filters.get("group_by") == "Group by Invoice" else 0
@@ -895,6 +911,17 @@ def add_total_row(
 				"total_tax": 0.0,
 				"total": 0.0,
 				"percent_gt": 0.0,
+				"qty": 0.0,
+				"gross_sales": 0.0,
+				"net_amount_exc_gst": 0.0,
+				"discount_amount": 0.0,
+				"net_total": 0.0,
+				"tax_total": 0.0,
+				"grand_total": 0.0,
+				"rounded_total": 0.0,
+				"outstanding_amount": 0.0,
+				"gst": 0.0,
+				"net_sales_disc_gst": 0.0,
 			},
 		)
 
@@ -908,6 +935,17 @@ def add_total_row(
 				"total_tax": 0.0,
 				"total": 0.0,
 				"percent_gt": 0.0,
+				"qty": 0.0,
+				"gross_sales": 0.0,
+				"net_amount_exc_gst": 0.0,
+				"discount_amount": 0.0,
+				"net_total": 0.0,
+				"tax_total": 0.0,
+				"grand_total": 0.0,
+				"rounded_total": 0.0,
+				"outstanding_amount": 0.0,
+				"gst": 0.0,
+				"net_sales_disc_gst": 0.0,
 			},
 		)
 
@@ -965,6 +1003,18 @@ def add_sub_total_row(item, total_row_map, group_by_value, tax_columns):
 	total_row["total_tax"] += item["total_tax"]
 	total_row["total"] += item["total"]
 	total_row["percent_gt"] += item["percent_gt"]
+	total_row["qty"] += item.get("qty", 0)
+	total_row["gross_sales"] += item.get("gross_sales", 0)
+	total_row["net_amount_exc_gst"] += item.get("net_amount_exc_gst", 0)
+	total_row["discount_amount"] += item.get("discount_amount", 0)
+	total_row["net_total"] += item.get("net_total", 0)
+	total_row["tax_total"] += item.get("tax_total", 0)
+	total_row["grand_total"] += item.get("grand_total", 0)
+	total_row["rounded_total"] += item.get("rounded_total", 0)
+	total_row["outstanding_amount"] += item.get("outstanding_amount", 0)
+	total_row["gst"] += item.get("gst", 0)
+	total_row["net_sales_disc_gst"] += item.get("net_sales_disc_gst", 0)
+
 
 	for tax in tax_columns:
 		total_row.setdefault(frappe.scrub(tax + " Amount"), 0.0)
