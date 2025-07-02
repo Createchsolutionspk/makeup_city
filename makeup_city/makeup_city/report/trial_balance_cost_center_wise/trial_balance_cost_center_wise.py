@@ -12,9 +12,10 @@ from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 )
 from erpnext.accounts.report.financial_statements import (
 	filter_accounts,
-	filter_out_zero_value_rows,
-	get_additional_conditions
+	filter_out_zero_value_rows
 )
+from makeup_city.makeup_city.report.financial_statements import get_additional_conditions
+
 from erpnext.accounts.report.utils import convert_to_presentation_currency, get_currency
 
 value_fields = (
