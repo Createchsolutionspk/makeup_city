@@ -9,6 +9,7 @@ from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 )
 from erpnext.accounts.report.utils import convert_to_presentation_currency, get_currency
 from erpnext.accounts.utils import get_fiscal_year
+from erpnext.accounts.report.financial_statements import get_cost_centers_with_children
 
 def get_additional_conditions(from_date, ignore_closing_entries, filters):
 	additional_conditions = []
