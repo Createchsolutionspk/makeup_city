@@ -10,13 +10,13 @@ from erpnext.accounts.report.financial_statements import (
 	get_period_list,
 	filter_accounts,
 	get_appropriate_currency,
-	set_gl_entries_by_account,
 	calculate_values,
 	accumulate_values_into_parents,
 	prepare_data,
 	filter_out_zero_value_rows,
 	get_accounts
 )
+from makeup_city.makeup_city.report.financial_statements import set_gl_entries_by_account
 
 
 def execute(filters=None):
@@ -224,13 +224,15 @@ def get_total_by_cost_center(data, filters):
 						d[cost_center_perc] = flt((amount / d.get('total')) * 100, precision=2) if d.get('total') else None
 						
 
+	lft, rgt = frappe.get_value("Cost Center", filters.get("cost_center"), ["lft", "rgt"])
 	cost_center_filters = {
 		"company": filters.get("company"),
-		"parent_cost_center": filters.get('cost_center'),
+		"lft": [">=", lft],
+		"rgt": ["<=", rgt],
 		"is_group": 0
 	}
 
-	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"])
+	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by="name")
 
 	for d in data:
 		if d.get('total_row') and d.get('root_type'):
@@ -257,13 +259,15 @@ def get_columns(filters):
 		}
 	]
 
+	lft, rgt = frappe.get_value("Cost Center", filters.get("cost_center"), ["lft", "rgt"])
 	cost_center_filters = {
 		"company": filters.get("company"),
-		"parent_cost_center": filters.get('cost_center'),
+		"lft": [">=", lft],
+		"rgt": ["<=", rgt],
 		"is_group": 0
 	}
 
-	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"])
+	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by="name")
 	for cs in cost_centers:
 		columns.append(
 			{
