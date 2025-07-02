@@ -12,10 +12,9 @@ from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 )
 from erpnext.accounts.report.financial_statements import (
 	filter_accounts,
-	filter_out_zero_value_rows,
-	set_gl_entries_by_account
+	filter_out_zero_value_rows
 )
-from makeup_city.makeup_city.report.financial_statements import get_additional_conditions
+from makeup_city.makeup_city.report.financial_statements import get_additional_conditions, set_gl_entries_by_account
 from erpnext.accounts.report.utils import convert_to_presentation_currency, get_currency
 
 value_fields = (
@@ -120,7 +119,6 @@ def get_data(filters):
 		gl_entries_by_account,
 		ignore_closing_entries=not flt(filters.with_period_closing_entry),
 	)
-
 	total_row = calculate_values(
 		accounts, gl_entries_by_account, opening_balances, filters, company_currency
 	)
@@ -164,12 +162,21 @@ def get_accounts_total_by_cost_center(data, gl_entries_by_account, opening_balan
 			if credit_cost_center not in value_fields:
 				value_fields.append(credit_cost_center)			
 
+	# cost_center_filters = {
+	# 	"company": filters.get("company"),
+	# 	"parent_cost_center": filters.get('cost_center'),
+	# 	"is_group": 0
+	# }
+	# cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by ="name")
+	lft, rgt = frappe.get_value("Cost Center", filters.get("cost_center"), ["lft", "rgt"])
 	cost_center_filters = {
 		"company": filters.get("company"),
-		"parent_cost_center": filters.get('cost_center'),
+		"lft": [">=", lft],
+		"rgt": ["<=", rgt],
 		"is_group": 0
 	}
-	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by ="name")
+
+	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by="name")
 	total_fields_dict = {field: 0.0 for field in value_fields}
 	for d in data:
 		if d.get("account") and account_wise_cost_centers_total.get(d.get("account")):
@@ -196,12 +203,8 @@ def get_accounts_total_by_cost_center(data, gl_entries_by_account, opening_balan
 				if account_wise_cost_centers_total.get(d.get('account')).get(credit_cost_center):
 					credit_sum = flt(account_wise_cost_centers_total.get(d.get('account')).get(credit_cost_center))
 
-				# frappe.msgprint('Account: {0} CS:{5} Root:{6}<br>debit_sum: {1}<br>opening_debit: {2}<br>credit_sum: {3}<br>opening_credit: {4}'.format(d.get("account"), debit_sum, opening_debit, credit_sum, opening_credit, cs.name, d.get('root_type')))
-
 				closing_debit = debit_sum + opening_debit
 				closing_credit = credit_sum + opening_credit
-
-				# frappe.msgprint('closing_debit: {0} closing_credit: {1} {2}'.format(closing_debit, closing_credit, closing_debit - closing_credit))
 
 				if (closing_debit - closing_credit) < 0:
 					d[credit_cost_center] = abs(closing_debit - closing_credit)
@@ -217,7 +220,6 @@ def get_accounts_total_by_cost_center(data, gl_entries_by_account, opening_balan
 				d[key] = None
 
 		## Total of all debit credit rows
-		# frappe.msgprint("{0}:{1}:{2}".format(d.get('is_group'), d.get('closing_debit'), d.get('account')))
 		for key in value_fields:
 			if d.get(key):
 				total_fields_dict[key] += flt(d.get(key))
@@ -536,9 +538,11 @@ def get_columns(filters):
 	]
 
 	if filters.get('cost_center'):
+		lft, rgt = frappe.get_value("Cost Center", filters.get("cost_center"), ["lft", "rgt"])
 		cost_center_filters = {
 			"company": filters.get("company"),
-			"parent_cost_center": filters.get('cost_center'),
+			"lft": [">=", lft],
+			"rgt": ["<=", rgt],
 			"is_group": 0
 		}
 
