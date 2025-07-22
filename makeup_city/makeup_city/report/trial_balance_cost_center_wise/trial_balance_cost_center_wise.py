@@ -162,12 +162,6 @@ def get_accounts_total_by_cost_center(data, gl_entries_by_account, opening_balan
 			if credit_cost_center not in value_fields:
 				value_fields.append(credit_cost_center)			
 
-	# cost_center_filters = {
-	# 	"company": filters.get("company"),
-	# 	"parent_cost_center": filters.get('cost_center'),
-	# 	"is_group": 0
-	# }
-	# cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by ="name")
 	lft, rgt = frappe.get_value("Cost Center", filters.get("cost_center"), ["lft", "rgt"])
 	cost_center_filters = {
 		"company": filters.get("company"),
@@ -178,56 +172,41 @@ def get_accounts_total_by_cost_center(data, gl_entries_by_account, opening_balan
 
 	cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by="name")
 	total_fields_dict = {field: 0.0 for field in value_fields}
+	
 	for d in data:
 		if d.get("account") and account_wise_cost_centers_total.get(d.get("account")):
 			for cs in cost_centers:
-
 				debit_cost_center = "{0}_debit".format(frappe.scrub(cs.name))
 				credit_cost_center = "{0}_credit".format(frappe.scrub(cs.name))
 
-				opening_debit = 0.0
-				opening_credit = 0.0
-				if opening_balances.get(d.get("account")) and opening_balances.get(d.get("account")).get(cs.name):
-					opening_debit = flt(opening_balances.get(d.get("account")).get(cs.name).get('opening_debit'))
-
-				if opening_balances.get(d.get("account")) and opening_balances.get(d.get("account")).get(cs.name):
-					opening_credit = flt(opening_balances.get(d.get("account")).get(cs.name).get('opening_credit'))
-
-				debit_sum = 0.0
-				d[debit_cost_center] = 0.0
 				if account_wise_cost_centers_total.get(d.get('account')).get(debit_cost_center):
-					debit_sum = flt(account_wise_cost_centers_total.get(d.get('account')).get(debit_cost_center))
-				
-				credit_sum = 0.0
-				d[credit_cost_center] = 0.0
+					d[debit_cost_center] = flt(account_wise_cost_centers_total.get(d.get('account')).get(debit_cost_center))
+
 				if account_wise_cost_centers_total.get(d.get('account')).get(credit_cost_center):
-					credit_sum = flt(account_wise_cost_centers_total.get(d.get('account')).get(credit_cost_center))
-
-				closing_debit = debit_sum + opening_debit
-				closing_credit = credit_sum + opening_credit
-
-				if (closing_debit - closing_credit) < 0:
-					d[credit_cost_center] = abs(closing_debit - closing_credit)
-					d[debit_cost_center] = 0
-
-				elif (closing_debit - closing_credit) > 0:
-					d[debit_cost_center] = abs(closing_debit - closing_credit)
-					d[credit_cost_center] = 0
-
-		## empty all group account amounts
-		if (d.get('is_group') and d.get('account') and d.get('root_type')) or d.get('is_total_row'):
-			for key in value_fields:
-				d[key] = None
-
-		## Total of all debit credit rows
-		for key in value_fields:
-			if d.get(key):
-				total_fields_dict[key] += flt(d.get(key))
+					d[credit_cost_center] = flt(account_wise_cost_centers_total.get(d.get('account')).get(credit_cost_center))
 		
-		## Updating total row 
+
+		closing_debit = flt(d.get("debit")) + flt(d.get("opening_debit"))
+		closing_credit = flt(d.get("credit")) + flt(d.get("opening_credit"))
+
+		if (closing_debit - closing_credit) < 0:
+			d["closing_credit"] = abs(closing_debit - closing_credit)
+			d["closing_debit"] = 0
+
+		elif (closing_debit - closing_credit) > 0:
+			d["closing_debit"] = abs(closing_debit - closing_credit)
+			d["closing_credit"] = 0
+
+		if d.get("indent") == 0 and not d.get('is_total_row'):
+			total_fields_dict["closing_debit"] += d.get("closing_debit")
+			total_fields_dict["closing_credit"] += d.get("closing_credit")
+			
+		for field in value_fields:
+			if field not in ("closing_debit", "closing_credit"):
+				total_fields_dict[field] += flt(d.get(field))
+		
 		if d.get('is_total_row'):
 			d.update(total_fields_dict)
-			# frappe.msgprint("{0}".format(d))
 
 	return data
 
@@ -394,8 +373,7 @@ def get_rootwise_opening_balances_by_cost_centers(filters, report_type):
 			additional_conditions=additional_conditions
 		),
 		query_filters,
-		as_dict=True,
-		debug=True
+		as_dict=True
 	)
 
 	opening = frappe._dict()
@@ -542,8 +520,7 @@ def get_columns(filters):
 		cost_center_filters = {
 			"company": filters.get("company"),
 			"lft": [">=", lft],
-			"rgt": ["<=", rgt],
-			"is_group": 0
+			"rgt": ["<=", rgt]
 		}
 
 		cost_centers = frappe.get_all("Cost Center", filters=cost_center_filters, fields=["name"], order_by="name")

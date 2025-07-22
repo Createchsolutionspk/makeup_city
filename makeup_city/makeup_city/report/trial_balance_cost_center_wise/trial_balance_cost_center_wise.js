@@ -57,7 +57,7 @@ frappe.require("assets/erpnext/js/financial_statements.js", function() {
 						"doctype": "Cost Center",
 						"filters": {
 							"company": company,
-							"is_group": 1
+							// "is_group": 1
 						}
 					}
 				}
@@ -91,13 +91,13 @@ frappe.require("assets/erpnext/js/financial_statements.js", function() {
 				"fieldname": "show_zero_values",
 				"label": __("Show zero values"),
 				"fieldtype": "Check",
-				"hidden": 1
+				"hidden": 0
 			},
 			{
 				"fieldname": "show_unclosed_fy_pl_balances",
 				"label": __("Show unclosed fiscal year's P&L balances"),
 				"fieldtype": "Check",
-				// "hidden": 1
+				"hidden": 1
 			},
 			{
 				"fieldname": "include_default_book_entries",
