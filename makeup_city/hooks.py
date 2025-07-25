@@ -128,6 +128,9 @@ doc_events = {
 	},
 	"Material Request": {
 		"validate": "makeup_city.events.material_request.validate"
+	},
+    "Purchase Receipt": {
+        "validate": "makeup_city.events.purchase_receipt.validate_duplicate_draft_grn"
 	}
 }
 
