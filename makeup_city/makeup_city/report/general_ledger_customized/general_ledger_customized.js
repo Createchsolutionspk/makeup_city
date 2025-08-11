@@ -33,7 +33,8 @@ frappe.query_reports["General Ledger Customized"] = {
 					"1207001003 - Cash at POS - MUC - MC",
 					"1207001004 - Cash at POS - BLS - MC",
 					"1207001005 - Cash at POS - ST London - MC",
-					"1207003001 - Petty Cash-i - MC"
+					"1207003001 - Petty Cash-i - MC",
+					"1203004001 - Credit Card Receivable - KEENU - MC"
 				];
 
 				return allowed_accounts
