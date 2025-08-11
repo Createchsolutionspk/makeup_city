@@ -248,7 +248,11 @@ fixtures = [
 					"Sales Person-custom_pos_profiles_links",
 					"Sales Person-custom_pos_profiles",
 					"POS Opening Shift-Sales Person-pos_profile",
-					"Item-is_bundle"
+					"Item-is_bundle",
+                    "Material Request-custom_section_break_cadyf",
+                    "Material Request-custom_total_qty",
+                    "Material Request-custom_column_break_rwlqc",
+                    "Material Request-custom_total_amount"
 				]
 			]
 		]
