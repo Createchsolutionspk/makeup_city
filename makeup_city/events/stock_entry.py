@@ -20,6 +20,7 @@ def get_item_stock_qty(item_code, warehouse, posting_date, posting_time):
 	return actual_qty
 
 def validate(self, method=None):
+	validate_no_duplicate_ste(self)
 	if self.stock_entry_type == "Material Transfer":
 		has_material_req = bool(self.items[0].material_request and self.items[0].material_request_item)
 		if not has_material_req:
@@ -27,3 +28,10 @@ def validate(self, method=None):
 		for item in self.items[1:]:
 			if not bool(item.material_request and item.material_request_item):
 				frappe.throw(_(f"<span style='font-weight: bold;'>Row {item.idx}:</span> Item <span style='font-weight: bold;'>{item.item_code}</span> is not linked to Material Request Items."))
+
+def validate_no_duplicate_ste(doc):
+	out_sles = frappe.db.get_list("Stock Entry", {"outgoing_stock_entry": doc.outgoing_stock_entry, "docstatus": ["<", 2]}, pluck="name")
+	out_sles_filtered = [x for x in out_sles if x != doc.name]
+	if out_sles_filtered:
+		out_sles_str = ", ".join(out_sles_filtered)
+		frappe.throw(_(f"There are existing entry(s) <span style='font-weight: bold;'>{out_sles_str}</span> for Outward GIT <b>{doc.outgoing_stock_entry}</b> so you can't create duplicate entry."))
