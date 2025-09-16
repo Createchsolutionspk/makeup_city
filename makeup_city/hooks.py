@@ -253,7 +253,8 @@ fixtures = [
                     "Material Request-custom_section_break_cadyf",
                     "Material Request-custom_total_qty",
                     "Material Request-custom_column_break_rwlqc",
-                    "Material Request-custom_total_amount"
+                    "Material Request-custom_total_amount",
+                    "Company-custom_validate_outstanding"
 				]
 			]
 		]

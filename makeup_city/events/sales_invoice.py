@@ -11,7 +11,8 @@ def validate(doc, method=None):
 		item.tax_rate = tax_rate
 
 def on_submit(doc, method=None):
-	if not(-0.5 < doc.outstanding_amount < 0.5):
+	validate_condition = frappe.db.get_value("Company", doc.company, "custom_validate_outstanding")
+	if validate_condition and not(-0.5 < doc.outstanding_amount < 0.5):
 		frappe.throw(_(f"Invoice can not be submitted if there is any outstanding amount."))
 
 def validate_apply_pricing_rule(doc):
