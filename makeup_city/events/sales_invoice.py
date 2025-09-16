@@ -10,6 +10,10 @@ def validate(doc, method=None):
 		item.rate_wtax = flt(item.rate * (1 + tax_rate / 100), 2)
 		item.tax_rate = tax_rate
 
+def on_submit(doc, method=None):
+	if not(-0.5 < doc.outstanding_amount < 0.5):
+		frappe.throw(_(f"Invoice can not be submitted if there is any outstanding amount."))
+
 def validate_apply_pricing_rule(doc):
 	"""
 	args = {
