@@ -254,7 +254,10 @@ fixtures = [
                     "Material Request-custom_total_qty",
                     "Material Request-custom_column_break_rwlqc",
                     "Material Request-custom_total_amount",
-                    "Company-custom_validate_outstanding"
+                    "Company-custom_validate_outstanding",
+					"Stock Transfer Type-custom_source_warehouse_series",
+					"Stock Transfer Type-custom_target_warehouse_series",
+					"Stock Entry-custom_warehouse_series"
 				]
 			]
 		]
