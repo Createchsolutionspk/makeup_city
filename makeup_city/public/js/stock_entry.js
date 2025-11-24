@@ -4,6 +4,23 @@ frappe.ui.form.on('Stock Entry', {
 			set_source_warehouse(frm);
 			set_warehouses(frm);
 		}
+
+		if (!frm.is_new() && frm.doc.docstatus === 0) {
+            frm.add_custom_button("Submit in Background", () => {
+                frappe.call({
+                    method: "makeup_city.utils.submit_se_in_background",
+                    args: { docname: frm.doc.name },
+                    freeze: true,
+                    freeze_message: "Queuing submission…",
+                    callback: (r) => {
+                        if (!r.exc) {
+                            frappe.msgprint("Stock Entry submission has been queued in the background.");
+                        }
+                    }
+                });
+            });
+			frm.change_custom_button_type('Submit in Background', null, 'warning');
+        }
 	},
 	custom_stock_transfer_entry(frm) {
 		set_source_warehouse(frm);
@@ -11,13 +28,6 @@ frappe.ui.form.on('Stock Entry', {
 	stock_entry_type(frm) {
 		set_warehouses(frm);
 	}
-	// from_warehouse: function(frm) {
-    //     set_custom_warehouse_series(frm);
-    // },
-    // to_warehouse: function(frm) {
-    //     set_custom_warehouse_series(frm);
-    // }
-	
 });
 
 let set_source_warehouse = function(frm) {
