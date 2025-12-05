@@ -501,6 +501,16 @@ def get_columns(additional_table_columns, filters):
 
 
 def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
+
+	def get_multi_filter(value):
+		if not value:
+			return None
+		if isinstance(value, str):
+			return [v.strip() for v in value.split(",") if v.strip()]
+		if isinstance(value, list):
+			return value
+		return [value]
+	
 	for opts in ("company", "customer"):
 		if filters.get(opts):
 			query = query.where(si[opts] == filters[opts])
@@ -517,24 +527,35 @@ def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
 		)
 		query = query.where(sii.parent.isin(sales_invoice))
 
-	if filters.get("warehouse"):
-		if frappe.db.get_value("Warehouse", filters.get("warehouse"), "is_group"):
-			lft, rgt = frappe.db.get_all(
-				"Warehouse", filters={"name": filters.get("warehouse")}, fields=["lft", "rgt"], as_list=True
-			)[0]
-			warehouses = frappe.db.get_all("Warehouse", {"lft": (">", lft), "rgt": ("<", rgt)}, pluck="name")
-			query = query.where(sii.warehouse.isin(warehouses))
-		else:
-			query = query.where(sii.warehouse == filters.get("warehouse"))
+	warehouse_filters = get_multi_filter(filters.get("warehouse"))
+	if warehouse_filters:
+		all_warehouses = []
 
-	if filters.get("brand"):
-		query = query.where(sii.brand == filters.get("brand"))
+		for wh in warehouse_filters:
+			if frappe.db.get_value("Warehouse", wh, "is_group"):
+				# get this group’s children
+				lft, rgt = frappe.db.get_value("Warehouse", wh, ["lft", "rgt"])
+				children = frappe.db.get_all(
+					"Warehouse",
+					filters={"lft": (">", lft), "rgt": ("<", rgt)},
+					pluck="name",
+				)
+				all_warehouses.extend(children)
+			else:
+				all_warehouses.append(wh)
+
+		query = query.where(sii.warehouse.isin(list(set(all_warehouses))))
+
+	brands = get_multi_filter(filters.get("brand"))
+	if brands:
+		query = query.where(item.brand.isin(brands))
 	
 	if filters.get("brand_type"):
 		query = query.where(item.custom_brand_type == filters.get("brand_type"))
 
-	if filters.get("item_code"):
-		query = query.where(sii.item_code == filters.get("item_code"))
+	item_codes = get_multi_filter(filters.get("item_code"))
+	if item_codes:
+		query = query.where(sii.item_code.isin(item_codes))
 
 	if filters.get("item_group"):
 		query = query.where(sii.item_group == filters.get("item_group"))
@@ -656,7 +677,7 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 
 	query = apply_conditions(query, si, sii, item, filters, additional_conditions)
 
-	return query.run(as_dict=True, debug=False)
+	return query.run(as_dict=True, debug=True)
 
 
 def get_delivery_notes_against_sales_order(item_list):

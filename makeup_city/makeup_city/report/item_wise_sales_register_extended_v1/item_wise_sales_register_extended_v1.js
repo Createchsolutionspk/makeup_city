@@ -40,21 +40,22 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 		{
 			fieldname: "warehouse",
 			label: __("Warehouse"),
-			fieldtype: "Link",
-			"reqd": 0,
+			fieldtype: "MultiSelectList",
 			options: "Warehouse",
-			get_query: function () {
-				const company = frappe.query_report.get_filter_value("company");
-				return {
-					filters: { company: company },
-				};
-			},
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Warehouse", txt, {
+					company: frappe.query_report.get_filter_value("company"),
+				})
+			}
 		},
 		{
 			fieldname: "brand",
 			label: __("Brand"),
-			fieldtype: "Link",
+			fieldtype: "MultiSelectList",
 			options: "Brand",
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Brand", txt, {})
+			}
 		},
 		{
 			fieldname: "brand_type",
@@ -65,8 +66,13 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 		{
 			fieldname: "item_code",
 			label: __("Item"),
-			fieldtype: "Link",
+			fieldtype: "MultiSelectList",
 			options: "Item",
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Item", txt, {
+					disabled: 0
+				})
+			}
 		},
 		{
 			fieldname: "item_group",

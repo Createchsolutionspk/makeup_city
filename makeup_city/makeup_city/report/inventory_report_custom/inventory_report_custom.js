@@ -45,28 +45,34 @@ frappe.query_reports["Inventory Report Custom"] = {
 		{
 			fieldname: "item_code",
 			label: __("Item"),
-			fieldtype: "Link",
+			fieldtype: "MultiSelectList",
 			width: "80",
 			options: "Item",
-			get_query: function () {
-				return {
-					query: "erpnext.controllers.queries.item_query",
-				};
-			},
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Item", txt, {
+					disabled: 0
+				})
+			}
 		},
 		{
 			fieldname: "brand",
 			label: __("Brand"),
-			fieldtype: "Link",
+			fieldtype: "MultiSelectList",
 			width: "80",
 			options: "Brand",
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Brand", txt, {})
+			}
 		},
 		{
 			fieldname: "warehouse",
 			label: __("Warehouse"),
-			fieldtype: "Link",
+			fieldtype: "MultiSelectList",
 			width: "80",
 			options: "Warehouse",
+			get_data: function(txt) {
+				return frappe.db.get_link_options("Warehouse", txt, {})
+			},
 			get_query: () => {
 				let warehouse_type = frappe.query_report.get_filter_value("warehouse_type");
 				let company = frappe.query_report.get_filter_value("company");
