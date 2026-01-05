@@ -336,7 +336,7 @@ class StockBalanceReport:
 	def get_warehouses_list(self):
 		if warehouses := self.filters.get("warehouse"):
 			if isinstance(warehouses, str):
-				warehouses = list(warehouses)
+				warehouses = to_list(warehouses)
 
 			# Expand selected warehouses → include their children
 			all_warehouses = set()
