@@ -54,10 +54,15 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 
 	customer_details = get_customer_details()
 
-	if filters.get("group_by") in ("Group by Invoice", "Warehouse"):
+	if filters.get("group_by") in ("Group by Invoice", "Warehouse", "Brand"):
 		group_by_object = defaultdict(list)
 		for p in item_list:
-			key = p.get("parent") if filters.get("group_by") == "Group by Invoice" else p.get("warehouse")
+			if filters.get("group_by") == "Group by Invoice":
+				key = p.get("parent")
+			if filters.get("group_by") == "Warehouse":
+				key = p.get("warehouse")
+			if filters.get("group_by") == "Brand":
+				key = p.get("brand")
 			group_by_object[key].append(p)
 		
 		for key, items in group_by_object.items():
@@ -87,7 +92,8 @@ def _execute(filters=None, additional_table_columns=None, additional_conditions=
 				"grand_total": 0.0,
 				"rounded_total": item1.get("base_rounded_total"),
 				"outstanding_amount": item1.get("outstanding_amount"),
-				"warehouse": item1.get("warehouse")
+				"warehouse": item1.get("warehouse"),
+				"brand": item1.get("brand")
 			}
 
 			for d in items:
@@ -269,22 +275,41 @@ def get_income_account(row):
 
 def get_columns(additional_table_columns, filters):
 	columns = []
-	hide_column = bool(filters.get("group_by") == "Group by Invoice" or filters.get("group_by") == "Warehouse")
-	if filters.get("group_by") not in ("Item", "Group by Invoice", "Warehouse"):
-		columns.extend(
-			[
-				{
-					"label": _("Item Code"),
-					"fieldname": "item_code",
-					"fieldtype": "Link",
-					"options": "Item",
-					"width": 120,
-				},
-				{"label": _("Item Name"), "fieldname": "item_name", "fieldtype": "Data", "width": 120},
-				{"label": _("Brand"), "fieldname": "brand", "fieldtype": "Link", "options": "Brand", "width": 120},
-				{"label": _("Brand Type"), "fieldname": "brand_type", "fieldtype": "Data", "width": 120},
-			]
-		)
+	hide_column = bool(filters.get("group_by") == "Group by Invoice" or filters.get("group_by") == "Warehouse" or filters.get("group_by") == "Brand")
+	columns.extend(
+		[
+			{
+				"label": _("Item Code"),
+				"fieldname": "item_code",
+				"fieldtype": "Link",
+				"options": "Item",
+				"width": 120,
+				"hidden": 1 if filters.get("group_by") in ("Item", "Group by Invoice", "Warehouse", "Brand") else 0
+			},
+			{
+				"label": _("Item Name"),
+				"fieldname": "item_name",
+				"fieldtype": "Data",
+				"width": 120,
+				"hidden": 1 if filters.get("group_by") in ("Item", "Group by Invoice", "Warehouse", "Brand") else 0
+			},
+			{
+				"label": _("Brand"),
+				"fieldname": "brand",
+				"fieldtype": "Link",
+				"options": "Brand",
+				"width": 120,
+				"hidden": 1 if filters.get("group_by") in ("Item", "Group by Invoice", "Warehouse") else 0
+			},
+			{
+				"label": _("Brand Type"),
+				"fieldname": "brand_type",
+				"fieldtype": "Data",
+				"width": 120,
+				"hidden": 1 if filters.get("group_by") in ("Item", "Group by Invoice", "Warehouse", "Brand") else 0
+			},
+		]
+	)
 
 	if filters.get("group_by") not in ("Item", "Item Group", "Group by Invoice"):
 		columns.extend(
@@ -353,7 +378,7 @@ def get_columns(additional_table_columns, filters):
 			"fieldname": "mode_of_payment",
 			"fieldtype": "Data",
 			"width": 120,
-			"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
+			"hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0
 		},
 		{
 			"label": _("Cost Center"),
@@ -420,7 +445,7 @@ def get_columns(additional_table_columns, filters):
 		}
 	]
 	
-	if filters.get("group_by") in ("Group by Invoice", "Warehouse"):
+	if filters.get("group_by") in ("Group by Invoice", "Warehouse", "Brand"):
 		columns += [
 			{
 				"label": _("Net Total"),
@@ -449,7 +474,7 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
+				"hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0
 			},
 			{
 				"label": _("Outstanding Amount"),
@@ -457,11 +482,11 @@ def get_columns(additional_table_columns, filters):
 				"fieldtype": "Currency",
 				"options": "currency",
 				"width": 100,
-				"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
+				"hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0
 			},
 		]
 
-	if filters.get("group_by") not in ("Group by Invoice", "Warehouse"):
+	if filters.get("group_by") not in ("Group by Invoice", "Warehouse", "Brand"):
 		columns.extend([
 			{
 				"label": _("Net Amount After Discount Exc GST"),
@@ -494,7 +519,7 @@ def get_columns(additional_table_columns, filters):
 
 	if filters.get("group_by") != "Group by Invoice":
 		columns.append(
-			{"label": _("% Of Grand Total"), "fieldname": "percent_gt", "fieldtype": "Float", "width": 80, "hidden": 1 if filters.get("group_by") == "Warehouse" else 0}
+			{"label": _("% Of Grand Total"), "fieldname": "percent_gt", "fieldtype": "Float", "width": 80, "hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0}
 		)
 
 	return columns
@@ -571,17 +596,54 @@ def apply_conditions(query, si, sii, item, filters, additional_conditions=None):
 		query = query.orderby(si.posting_date, order=Order.desc)
 		query = query.orderby(sii.item_group, order=Order.desc)
 	else:
-		query = apply_group_by_conditions(query, si, sii, filters)
+		query = apply_group_by_conditions(query, si, sii, item, filters)
 
 	for key, value in (additional_conditions or {}).items():
 		query = query.where(si[key] == value)
 
 	if filters.get("invoice"):
 		query = query.where(si.name == filters.get("invoice"))
+
+	# Parent Item Group filter (tree based)
+	if filters.get("parent_item_group"):
+		lft, rgt = frappe.db.get_value(
+			"Item Group",
+			filters.get("parent_item_group"),
+			["lft", "rgt"]
+		)
+
+		ig = frappe.qb.DocType("Item Group")
+
+		sub_groups = (
+			frappe.qb.from_(ig)
+			.select(ig.name)
+			.where((ig.lft >= lft) & (ig.rgt <= rgt))
+		).run(pluck=True)
+
+		query = query.where(sii.item_group.isin(sub_groups))
+
+	# Parent Warehouse filter (tree based)
+	if filters.get("parent_warehouse"):
+		lft, rgt = frappe.db.get_value(
+			"Warehouse",
+			filters.get("parent_warehouse"),
+			["lft", "rgt"]
+		)
+
+		wh = frappe.qb.DocType("Warehouse")
+
+		sub_warehouses = (
+			frappe.qb.from_(wh)
+			.select(wh.name)
+			.where((wh.lft >= lft) & (wh.rgt <= rgt))
+		).run(pluck=True)
+
+		query = query.where(sii.warehouse.isin(sub_warehouses))
+
 	return query
 
 
-def apply_group_by_conditions(query, si, ii, filters):
+def apply_group_by_conditions(query, si, ii, item, filters):
 	if filters.get("group_by") == "Invoice":
 		query = query.orderby(ii.parent, order=Order.desc)
 	elif filters.get("group_by") == "Item":
@@ -590,6 +652,8 @@ def apply_group_by_conditions(query, si, ii, filters):
 		query = query.orderby(ii.item_group)
 	elif filters.get("group_by") in ("Customer", "Customer Group", "Territory", "Supplier"):
 		query = query.orderby(si[frappe.scrub(filters.get("group_by"))])
+	elif filters.get("group_by") == "Brand":
+		query = query.orderby(item.brand)
 
 	return query
 
@@ -677,7 +741,7 @@ def get_items(filters, additional_query_columns, additional_conditions=None):
 
 	query = apply_conditions(query, si, sii, item, filters, additional_conditions)
 
-	return query.run(as_dict=True, debug=True)
+	return query.run(as_dict=True, debug=False)
 
 
 def get_delivery_notes_against_sales_order(item_list):
@@ -850,7 +914,7 @@ def get_tax_accounts(
 					"fieldname": frappe.scrub(desc + " Rate"),
 					"fieldtype": "Float",
 					"width": 100,
-					"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
+					"hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0
 				}
 			)
 
@@ -861,7 +925,7 @@ def get_tax_accounts(
 					"fieldtype": "Currency",
 					"options": "currency",
 					"width": 100,
-					"hidden": 1 if filters.get("group_by") == "Warehouse" else 0
+					"hidden": 1 if filters.get("group_by") in ("Warehouse" , "Brand") else 0
 				}
 			)
 
@@ -997,6 +1061,8 @@ def get_display_value(filters, group_by_field, item):
 			)
 		else:
 			value = item.get(party)
+	elif filters.get("group_by") == "Brand":
+		value = item.get("brand")
 	else:
 		value = item.get(group_by_field)
 
@@ -1009,6 +1075,9 @@ def get_group_by_and_display_fields(filters):
 		subtotal_display_field = "invoice"
 	elif filters.get("group_by") == "Invoice":
 		group_by_field = "parent"
+		subtotal_display_field = "item_code"
+	elif filters.get("group_by") == "Brand":
+		group_by_field = "brand"
 		subtotal_display_field = "item_code"
 	else:
 		group_by_field = frappe.scrub(filters.get("group_by"))

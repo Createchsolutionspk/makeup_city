@@ -8,7 +8,7 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			fieldname: "from_date",
 			label: __("From Date"),
 			fieldtype: "Date",
-			default: frappe.datetime.add_months(frappe.datetime.get_today(), -1),
+			default: frappe.datetime.get_today(),
 			reqd: 1,
 		},
 		{
@@ -84,7 +84,7 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			label: __("Group By"),
 			fieldname: "group_by",
 			fieldtype: "Select",
-			options: ["", "Customer Group", "Customer", "Item Group", "Item", "Territory", "Invoice", "Group by Invoice", "Warehouse"],
+			options: ["", "Customer Group", "Customer", "Item Group", "Item", "Territory", "Invoice", "Group by Invoice", "Warehouse", "Brand"],
 		},
 		{
 			fieldname: "invoice",
@@ -92,6 +92,34 @@ frappe.query_reports["Item Wise Sales Register Extended V1"] = {
 			fieldtype: "Link",
 			options: "Sales Invoice",
 		},
+		{
+			fieldname: "parent_item_group",
+			label: __("Parent Item Group"),
+			fieldtype: "Link",
+			options: "Item Group",
+			get_query: function() {
+				return {
+					filters: {
+						is_group: 1,
+						parent_item_group: ""
+					}
+				};
+			}
+		},
+		{
+			fieldname: "parent_warehouse",
+			label: __("Parent Warehouse"),
+			fieldtype: "Link",
+			options: "Warehouse",
+			get_query: function() {
+				return {
+					filters: {
+						is_group: 1,
+						parent_warehouse: "All Warehouses - MC"
+					}
+				};
+			}
+		}
 	],
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
