@@ -52,6 +52,12 @@ def get_total_stock(filters):
 	else:
 		query = query.select(wh.company).groupby(wh.company)
 	
+	if filters.get("warehouse"):
+		query = query.where(bin.warehouse == filters.get("warehouse"))
+	
+	if filters.get("item_group"):
+		query = query.where(item.item_group == filters.get("item_group"))
+
 	if not filters.get("show_zero_stock"):
 		query = query.where(bin.actual_qty != 0)
 

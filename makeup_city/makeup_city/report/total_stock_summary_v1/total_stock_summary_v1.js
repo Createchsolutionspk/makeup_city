@@ -24,6 +24,20 @@ frappe.query_reports["Total Stock Summary V1"] = {
 			depends_on: "eval: doc.group_by != 'Company'",
 		},
 		{
+			fieldname: "warehouse",
+			label: __("Warehouse"),
+			fieldtype: "Link",
+			options: "Warehouse",
+			width: "80"
+		},
+		{
+			fieldname: "item_group",
+			label: __("Item Group"),
+			fieldtype: "Link",
+			options: "Item Group",
+			width: "80"
+		},
+		{
 			fieldname: "show_zero_stock",
 			label: __("Show Zero Stock"),
 			fieldtype: "Check",
