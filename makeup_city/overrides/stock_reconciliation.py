@@ -6,7 +6,8 @@ from erpnext.stock.utils import get_stock_balance
 from erpnext.stock.doctype.stock_reconciliation.stock_reconciliation import (
 	get_item_and_warehouses,
 	get_itemwise_batch,
-	get_item_data
+	get_item_data,
+	StockReconciliation
 )
 
 
@@ -123,3 +124,27 @@ def get_items_for_stock_reco(warehouse, company, brand=None):
 		][0]
 	]
 	return items
+
+
+class StockReconciliationCustom(StockReconciliation):
+	def validate(self):
+		if not self.expense_account:
+			self.expense_account = frappe.get_cached_value(
+				"Company", self.company, "stock_adjustment_account"
+			)
+		if not self.cost_center:
+			self.cost_center = frappe.get_cached_value("Company", self.company, "cost_center")
+		self.validate_posting_time()
+		if not self.get("custom_items_no_change"):
+			self.remove_items_with_no_change()
+		self.validate_data()
+		self.validate_expense_account()
+		self.validate_customer_provided_item()
+		self.set_zero_value_for_customer_provided_items()
+		self.clean_serial_nos()
+		self.set_total_qty_and_amount()
+		self.validate_putaway_capacity()
+		self.validate_inventory_dimension()
+
+		if self._action == "submit":
+			self.make_batches("warehouse")

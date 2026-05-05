@@ -113,7 +113,8 @@ doctype_js = {
 # Override standard doctype classes
 
 override_doctype_class = {
-	"Access Log": "makeup_city.overrides.access_log_override.CustomAccessLog"
+	"Access Log": "makeup_city.overrides.access_log_override.CustomAccessLog",
+    "Stock Reconciliation": "makeup_city.overrides.stock_reconciliation.StockReconciliationCustom"
 }
 
 # Document Events
@@ -256,6 +257,7 @@ fixtures = [
                     "Material Request-custom_column_break_rwlqc",
                     "Material Request-custom_total_amount",
                     "Company-custom_validate_outstanding",
+                    "Stock Reconciliation-custom_items_no_change"
 				]
 			]
 		]
